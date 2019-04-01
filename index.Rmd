@@ -34,33 +34,109 @@ Consider the following scenarios:
   - A flight is 15 minutes early 50% of the time, and 15 minutes late 50% of the time.
 
 ```{r}
-
+flights %>% 
+  group_by(flight) %>% 
+  summarize(n = n(),
+            early15 = mean(arr_delay <= -15, na.rm = TRUE),
+            late15 = mean(arr_delay >= 15, na.rm =TRUE)) %>% 
+  filter(early15 == 0.5 & late15 == 0.5)
 ```
 
 
   - A flight is always 10 minutes late.
 
 ```{r}
-
+flights %>% 
+  group_by(flight) %>% 
+  summarize(n = n(),
+            late10 = mean(arr_delay >= 10, na.rm = TRUE)) %>%
+  filter(late10 == 1)
 ```
 
   - A flight is 30 minutes early 50% of the time, and 30 minutes late 50% of the time.
+```{r}
+flights %>% 
+  group_by(flight) %>% 
+  summarize(n = n(),
+            early30 = mean(arr_delay <= -30, na.rm = TRUE),
+            late30 = mean(arr_delay >= 30, na.rm =TRUE)) %>% 
+  filter(early30 == 0.5 & late30 == 0.5)
+```
+
 
   - 99% of the time a flight is on time. 1% of the time it’s 2 hours late.
 
 ```{r}
-
+flights %>% 
+  group_by(flight) %>% 
+  summarize(n = n(),
+            ontime = mean(arr_delay == 0, na.rm = TRUE),
+            late120 = mean(arr_delay >= 120, na.rm =TRUE)) %>% 
+  filter(ontime == 0.99 & late120 == 0.01)
 ```
 
 
   - Which is more important: arrival delay or departure delay?
+  Saabumise hilinemine, sest ei pruugi jõuda järgmisele lennule vms.
 
 2. Come up with another approach that will give you the same output as not_cancelled %>% count(dest) and not_cancelled %>% count(tailnum, wt = distance) (without using count()).
+```{r}
+not_cancelled <- flights %>%
+  filter(!is.na(dep_delay), !is.na(arr_delay))
+```
 
+```{r}
+not_cancelled %>% count(dest)
+not_cancelled %>%
+  group_by(dest) %>%
+  summarise(n = length(dest))
+```
+```{r}
+not_cancelled %>% count(tailnum, wt = distance)
+not_cancelled %>%
+  group_by(tailnum) %>%
+  summarise(n = sum(distance))
+```
 3. Our definition of cancelled flights (is.na(dep_delay) | is.na(arr_delay) ) is slightly suboptimal. Why? Which is the most important column?
+
+Juhul kui lend läheb küll välja, kuid ei saabu sihtkohta, ei ole ta tühistatud (näiteks suunati mingil põhjusel mujale ümber). Seega on dep_delay tühistamise määramiseks olulisem.
 
 4. Look at the number of cancelled flights per day. Is there a pattern? Is the proportion of cancelled flights related to the average delay?
 
+```{r}
+cancelled_flights <-
+  flights %>%
+  mutate(cancelled = (is.na(dep_delay))) %>%
+  group_by(year, month, day) %>%
+  summarise(
+    prop_cancelled = mean(cancelled),
+    avg_delay = mean(dep_delay, na.rm = TRUE)
+  )
+cancelled_flights
+```
+
+```{r}
+ggplot(cancelled_flights, aes(x = avg_delay, prop_cancelled)) +
+  geom_point(size=0.5) +
+  geom_smooth(se = FALSE)
+```
+
+Päevadel, kui on rohkem tühistatud lende, on ka suuremad hilinemised.
+
 5. Which carrier has the worst delays? Challenge: can you disentangle the effects of bad airports vs. bad carriers? Why/why not? (Hint: think about flights %>% group_by(carrier, dest) %>% summarise(n()))
 
+```{r}
+flights %>%
+  group_by(carrier) %>%
+  summarise(arr_delay = mean(arr_delay, na.rm = TRUE)) %>%
+  arrange(desc(arr_delay))
+```
+
 6. What does the sort argument to count() do. When might you use it?
+
+Sorteerib loendatava suuruse kahanevas järjekorras. Arrange asemel.
+
+```{r}
+flights %>% 
+  count(flight, sort = TRUE)
+```
